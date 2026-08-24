@@ -33,3 +33,4 @@ gradle.properties
 .kotlin
 .claude
 .cursor
+debug-prefs-backup/
