@@ -1,0 +1,16 @@
+# Fork-only Dependabot config. Deliberately narrow: this fork tracks origin/master and
+# cherry-picks patches on top of it (see FORK.md), so routine version-bump PRs against
+# files upstream also maintains (build.gradle, gradle/*) would just create extra rebase
+# conflicts for no real benefit — upstream already keeps Gradle dependencies current.
+#
+# Scope is limited to GitHub Actions used in .github/workflows: pinned action versions
+# are a real supply-chain surface (a compromised action version runs arbitrary code in
+# CI), the diffs are single-line and trivial to reconcile on rebase, and updates are
+# infrequent enough not to add meaningful churn.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
