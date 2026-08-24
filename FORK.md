@@ -194,6 +194,57 @@ so a paused-but-resumable session survives long enough for a media-button press 
 Needs upstream-compatibility judgment before implementing — this touches core service
 lifecycle behavior shared with stock AntennaPod, not a fork-only corner.
 
+## Investigation notes: battery usage
+
+Read-only investigation of `:playback:service` (the active `Media3PlaybackService`/
+`ExoPlayerWrapper` implementation; the legacy `PlaybackService`/`LocalPSMP` classes throw if
+started and are effectively dead code).
+
+**Wakelocks**: no explicit wakelock or WiFi lock is acquired anywhere in the active code path.
+`ExoPlayerWrapper.createPlayer()` builds the `ExoPlayer` without calling `setWakeMode(...)`, so
+it defaults to `C.WAKE_MODE_NONE`. Good (no leaked/long-held wakelock risk), but also no safety
+net if the device's CPU/WiFi sleeps mid-buffer during screen-off streaming — a playback-stall
+risk adjacent to the anti-kill issue above, not itself a drain. The only wifi-lock code left in
+the tree is in the unused legacy `LocalPSMP`.
+
+**Notification/position-update frequency**: the foreground notification uses Media3's
+`DefaultMediaNotificationProvider`, which only rebuilds on actual player state/metadata
+changes, not on a per-second tick — battery-friendly. A 1-second `Observable.interval` position
+observer does run while playing (posts an EventBus event each tick, and checks — cheaply, via
+an early-return when no widget is enabled — whether to update the home-screen widget), but the
+actual DB position write is throttled separately to every 5s (`POSITION_SAVE_INTERVAL_MS`), not
+every tick.
+
+**Background jobs**: all periodic background work uses WorkManager, not raw `AlarmManager`, and
+is already infrequent/constraint-respecting: hourly feed auto-refresh (network-constrained),
+DB export and DB maintenance every 3 days. None of this is a red flag on its own.
+
+**GPS/sensors**: no location/Bluetooth/camera APIs in the playback path. One `SensorManager`
+accelerometer listener (`ShakeListener`) is used only while a sleep timer is active, and is
+unregistered on pause — minor, opt-in, bounded.
+
+**Buffer size tradeoff**: the larger `DefaultLoadControl` buffer documented above (fewer,
+larger network fetches instead of frequent small ones) is a plausible battery-*positive*
+tradeoff against its RSS memory cost, since it can reduce radio/WiFi wake-ups per hour of
+playback.
+
+### Candidate improvements (not implemented — write-up only)
+
+1. Explicitly set `exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)` (or `LOCAL`) so screen-off
+   streaming doesn't stall/retry due to CPU/WiFi sleep, instead of relying entirely on implicit
+   foreground-service protection (which the anti-kill investigation above shows is already
+   unreliable on pause).
+2. Consider relaxing the 1s position-observer cadence to match the 5s DB-save interval when the
+   app UI isn't visible, since the EventBus position broadcast is only needed for UI.
+3. Delete the dead `LocalPSMP`/legacy `PlaybackService` wifi-lock code during a future cleanup,
+   to avoid confusion (not urgent, not user-facing).
+4. Verify/add `Constraints.Builder().setRequiresBatteryNotLow(true)` (or equivalent) on the
+   hourly feed-refresh `PeriodicWorkRequest` if not already present, so refreshes defer under
+   low battery.
+
+None of the above is implemented; this is scoped as investigation only, same as the anti-kill
+section above.
+
 ## Questions for review
 
 _(Open design/compatibility questions raised during unattended work land here, for review
