@@ -15,6 +15,22 @@ why `mine` differs from upstream.
 - Personal patches land on `mine` as cherry-picks of finished commits from their own topic
   branch, not as fresh commits directly on `mine` and not as a branch merge.
 
+## Releases / Obtainium
+
+When `fork-rebase.yml` actually advances `mine` (i.e. upstream had new commits), it also
+builds the PlayDebug variant and publishes it to a single rolling GitHub Release tagged
+`fork-latest` — the previous release/tag is deleted first, so there's always exactly one
+release, not one per rebase. Nothing is published on a no-op rebase.
+
+The APK is signed with a persistent debug keystore stored as the `FORK_DEBUG_KEYSTORE_B64`
+repo secret (base64), restored to `~/.android/debug.keystore` before the build — the same
+key used for local debug builds on this fork, so releases install as an in-place update
+rather than requiring an uninstall/reinstall each time.
+
+To track this fork's builds in [Obtainium](https://github.com/ImranR98/Obtainium), add
+`https://github.com/michaelpeeters/AntennaPod` as a GitHub app source — Obtainium finds
+`fork-latest` and its APK asset automatically.
+
 ## Origin PR vs. fork-only
 
 Two different kinds of change live here, and they're tracked differently:
