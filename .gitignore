@@ -34,3 +34,6 @@ gradle.properties
 .claude
 .cursor
 debug-prefs-backup/
+*.opml
+*.db
+test-videos/
