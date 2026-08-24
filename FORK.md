@@ -152,3 +152,49 @@ type isn't known until an episode is actually loaded. Two implementation paths e
 Local/streaming and video/audio duration splits are not alternatives — they fix different,
 non-overlapping cases. Local/streaming does nothing for a *streamed* video podcast, which is
 exactly the case the 773MB RSS measurement above covers.
+
+## Investigation notes: anti-kill (playback process killed after pause)
+
+Symptom (real device, Moto G73 5G, 2026-08-24): once playback pauses/stops, the app process
+gets killed very quickly by the OS. Pressing play on a Bluetooth headphone/remote afterward
+does nothing until the app is manually reopened — the media button never reaches a live
+receiver.
+
+Two concrete causes confirmed directly on-device (`adb shell dumpsys deviceidle whitelist`,
+plus reading `PlaybackServiceStateManager.java`):
+
+1. **The app is not exempt from Doze/battery-optimization.** `dumpsys deviceidle whitelist`
+   showed no entry for `de.danoeh.antennapod.debug` before this was manually added for
+   testing. Nothing in the codebase ever requests this exemption (no
+   `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` anywhere). On Motorola devices in particular
+   (aggressive OEM-level standby/kill policies beyond stock AOSP Doze), an app with no
+   exemption is a prime target for fast background kills.
+2. **`prefPersistNotify` (default `true`, "persist notification" setting) does not actually
+   keep the service protected.** In `PlaybackServiceStateManager.stopForeground()`
+   (`playback/service/src/main/java/.../internal/PlaybackServiceStateManager.java`), pausing
+   playback always calls `ServiceCompat.stopForeground(...)` — with `STOP_FOREGROUND_DETACH`
+   when persist-notification is on, `STOP_FOREGROUND_REMOVE` when it's off — and either way
+   sets `isInForeground = false`. `DETACH` only keeps the *notification* visible; it does not
+   keep the service's actual Android foreground-service status, which is what protects the
+   process from OS-level reclaiming. So even with the setting at its default, the process
+   loses real foreground protection the instant playback pauses — the setting's name promises
+   more than the code delivers.
+
+Tested as a manual, reversible mitigation: `adb shell dumpsys deviceidle whitelist
++de.danoeh.antennapod.debug` (equivalent to enabling "Unrestricted battery usage" for the app
+in Android Settings). Not yet confirmed whether this alone resolves the symptom in practice —
+needs a real-world pause/resume-via-headphone test over the following days. This only
+addresses cause 1; cause 2 (foreground-service status genuinely dropping on pause) is a
+separate, code-level gap and needs its own fix — candidates worth evaluating: requesting the
+battery-optimization exemption from within the app (with user consent, since this is a
+system permission prompt) so it isn't dependent on a manual device setting, and/or keeping a
+lighter-weight but still-alive component (e.g. a shorter-lived foreground grace period, or
+relying on `MediaSessionService`'s own lifecycle rather than manual `stopForeground` calls)
+so a paused-but-resumable session survives long enough for a media-button press to reach it.
+Needs upstream-compatibility judgment before implementing — this touches core service
+lifecycle behavior shared with stock AntennaPod, not a fork-only corner.
+
+## Questions for review
+
+_(Open design/compatibility questions raised during unattended work land here, for review
+before deciding. Empty for now.)_
