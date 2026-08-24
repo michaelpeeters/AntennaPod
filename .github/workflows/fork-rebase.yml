@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+  push:
+    branches: [ mine ]
 
 permissions:
   contents: write
@@ -31,16 +33,16 @@ jobs:
             echo "up_to_date=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Rebase onto upstream/master
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' && github.event_name != 'push'
         run: git rebase upstream/master
       - name: Set up JDK 21
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
       - name: Cache Gradle
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         uses: actions/cache@v4
         with:
           path: |
@@ -48,30 +50,30 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}
       - name: Configure parallel build
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         run: echo "org.gradle.parallel=true" >> local.properties
       - name: Create temporary release keystore
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         run: |
           keytool -noprompt -genkey -v -keystore "app/keystore" -alias alias -storepass password -keypass password -keyalg RSA -validity 10 -dname "CN=antennapod.org, OU=dummy, O=dummy, L=dummy, S=dummy, C=US"
           cp app/keystore app-wearos/keystore
       - name: Unit tests
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         run: ./gradlew testPlayDebugUnitTest testDebugUnitTest
       - name: Push rebased mine
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' && github.event_name != 'push'
         run: git push --force-with-lease origin mine
       - name: Restore debug keystore
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         run: |
           mkdir -p ~/.android ~/.config/.android
           echo "${{ secrets.FORK_DEBUG_KEYSTORE_B64 }}" | base64 -d > ~/.android/debug.keystore
           cp ~/.android/debug.keystore ~/.config/.android/debug.keystore
       - name: Build debug APK
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         run: ./gradlew assemblePlayDebug
       - name: Publish fork release
-        if: steps.check.outputs.up_to_date == 'false'
+        if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
