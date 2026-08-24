@@ -37,3 +37,6 @@ debug-prefs-backup/
 *.opml
 *.db
 test-videos/
+*.log
+debug-logs/
+ui.xml
