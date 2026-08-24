@@ -247,5 +247,21 @@ section above.
 
 ## Questions for review
 
-_(Open design/compatibility questions raised during unattended work land here, for review
-before deciding. Empty for now.)_
+- **This session's Gradle builds were blocked entirely.** The cloud environment's egress
+  policy returns a 403 on `dl.google.com` (confirmed on retry, not transient), which the
+  Android Gradle Plugin needs to resolve — so no `./gradlew` task, build or test, could run at
+  all. `maven.google.com` (an alternate official Google Maven host serving the same artifacts)
+  was reachable, but per the proxy's own guidance ("do not retry or route around it — report
+  the blocked host") this session did not attempt to substitute it into `settings.gradle`
+  rather than decide unilaterally to change shared build config to work around an org policy
+  denial. Please either allowlist `dl.google.com` for this environment, or confirm that
+  pointing `google()` at `maven.google.com` is an acceptable substitution, so future unattended
+  sessions here can actually verify their changes.
+- **DB+preferences export (`db-preferences-export` branch, unverified — see above)**: should
+  `SynchronizationCredentials` (the gpodder.net username/password, currently excluded) be
+  included in the exported preferences table? It's the only preference data that's an actual
+  credential rather than a setting, and the export is a plaintext SQLite file that could end up
+  copied to cloud storage, email, etc. Current implementation only exports the default
+  SharedPreferences file and `SleepTimerPreferences`; `SynchronizationSettings` (non-credential
+  sync config) and `UsageStatistics` were also left out as lower-value, not for privacy
+  reasons — happy to add either on request.
