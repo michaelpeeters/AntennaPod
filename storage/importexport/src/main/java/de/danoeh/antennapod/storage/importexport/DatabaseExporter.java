@@ -10,7 +10,6 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.format.Formatter;
 import android.util.Log;
-import androidx.preference.PreferenceManager;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.SleepTimerPreferences;
 import org.apache.commons.io.FileUtils;
@@ -40,7 +39,7 @@ public class DatabaseExporter {
 
     private static SharedPreferences preferencesForTag(String tag, Context context) {
         if (PREFS_TAG_DEFAULT.equals(tag)) {
-            return PreferenceManager.getDefaultSharedPreferences(context);
+            return context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         }
         return context.getSharedPreferences(tag, Context.MODE_PRIVATE);
     }
@@ -110,7 +109,7 @@ public class DatabaseExporter {
             if (db.getVersion() > PodDBAdapter.VERSION) {
                 throw new IOException(context.getString(R.string.import_no_downgrade));
             }
-            List<ContentValues> importedPreferences = readPreferences(db);
+            final List<ContentValues> importedPreferences = readPreferences(db);
             db.close();
 
             File currentDB = context.getDatabasePath(PodDBAdapter.DATABASE_NAME);
