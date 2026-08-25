@@ -80,13 +80,16 @@ jobs:
         run: |
           TAG=fork-latest
           SHA=$(git rev-parse --short HEAD)
+          TITLE="Fork build $(date -u +%Y-%m-%d) ($SHA)"
+          NOTES="Automated build from mine @ $SHA. Signed with the fork's persistent debug key for in-place updates via Obtainium."
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release delete "$TAG" --repo "${{ github.repository }}" --yes --cleanup-tag
+            gh release upload "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
+              --repo "${{ github.repository }}" --clobber
+            gh release edit "$TAG" --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
+          else
+            gh release create "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
+              --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
           fi
-          gh release create "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
-            --repo "${{ github.repository }}" \
-            --title "Fork build $(date -u +%Y-%m-%d) ($SHA)" \
-            --notes "Automated build from mine @ $SHA. Signed with the fork's persistent debug key for in-place updates via Obtainium."
       - name: File an issue on failure
         if: failure()
         env:
