@@ -228,22 +228,21 @@ larger network fetches instead of frequent small ones) is a plausible battery-*p
 tradeoff against its RSS memory cost, since it can reduce radio/WiFi wake-ups per hour of
 playback.
 
-### Candidate improvements (not implemented — write-up only)
+### Candidate improvements
 
-1. Explicitly set `exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)` (or `LOCAL`) so screen-off
-   streaming doesn't stall/retry due to CPU/WiFi sleep, instead of relying entirely on implicit
-   foreground-service protection (which the anti-kill investigation above shows is already
-   unreliable on pause).
+1. ~~Explicitly set `exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK)`~~ — **implemented**: so
+   screen-off streaming doesn't stall/retry due to CPU/WiFi sleep, instead of relying entirely
+   on implicit foreground-service protection (which the anti-kill investigation above shows is
+   already unreliable on pause).
 2. Consider relaxing the 1s position-observer cadence to match the 5s DB-save interval when the
-   app UI isn't visible, since the EventBus position broadcast is only needed for UI.
+   app UI isn't visible, since the EventBus position broadcast is only needed for UI. Not
+   implemented.
 3. Delete the dead `LocalPSMP`/legacy `PlaybackService` wifi-lock code during a future cleanup,
-   to avoid confusion (not urgent, not user-facing).
-4. Verify/add `Constraints.Builder().setRequiresBatteryNotLow(true)` (or equivalent) on the
-   hourly feed-refresh `PeriodicWorkRequest` if not already present, so refreshes defer under
-   low battery.
+   to avoid confusion (not urgent, not user-facing). Not implemented.
+4. ~~Verify/add `Constraints.Builder().setRequiresBatteryNotLow(true)`~~ — **implemented**: on
+   the hourly feed-refresh `PeriodicWorkRequest`, so refreshes defer under low battery.
 
-None of the above is implemented; this is scoped as investigation only, same as the anti-kill
-section above.
+Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section above.
 
 ## Questions for review
 
