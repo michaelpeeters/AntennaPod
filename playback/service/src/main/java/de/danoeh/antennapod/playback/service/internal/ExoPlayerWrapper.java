@@ -106,6 +106,7 @@ public class ExoPlayerWrapper {
                 .setLoadControl(loadControl.build())
                 .build();
         exoPlayer.setSeekParameters(SeekParameters.EXACT);
+        exoPlayer.setWakeMode(C.WAKE_MODE_NETWORK);
         exoPlayer.addListener(new Player.Listener() {
             @Override
             public void onPlaybackStateChanged(@Player.State int playbackState) {
