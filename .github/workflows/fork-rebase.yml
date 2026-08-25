@@ -86,19 +86,25 @@ jobs:
         if: steps.check.outputs.up_to_date == 'false' || github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          TAG=fork-latest
+          # Obtainium derives its tracked "pseudo-version" from the release's
+          # own GitHub metadata (tag/id/date), not from the APK's versionCode.
+          # Editing one release in place forever freezes that metadata, so
+          # Obtainium can never see a new build. Give every build its own
+          # tag/release (new id + date) so Obtainium detects it, but only
+          # prune the old one(s) *after* the new release exists, so there's
+          # never a window with no release at all (the failure mode that
+          # in-place editing was originally introduced to avoid).
+          TAG="fork-$GITHUB_RUN_NUMBER"
           SHA=$(git rev-parse --short HEAD)
           TITLE="Fork build $(date -u +%Y-%m-%d) ($SHA)"
           NOTES="Automated build from mine @ $SHA. Signed with the fork's persistent debug key for in-place updates via Obtainium."
-          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
-              --repo "${{ github.repository }}" --clobber
-            gh release edit "$TAG" --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
-          else
-            gh release create "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
-              --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
-          fi
+          gh release create "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
+            --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
+          gh release list --repo "${{ github.repository }}" --json tagName -q '.[].tagName' \
+            | grep -E '^fork-([0-9]+|latest)$' | grep -v "^$TAG\$" \
+            | xargs -r -n1 gh release delete --repo "${{ github.repository }}" --yes --cleanup-tag
       - name: File an issue on failure
         if: failure()
         env:
