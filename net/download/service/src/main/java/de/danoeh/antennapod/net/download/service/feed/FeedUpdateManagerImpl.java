@@ -50,7 +50,8 @@ public class FeedUpdateManagerImpl extends FeedUpdateManager {
                     FeedUpdateWorker.class, 1, TimeUnit.HOURS)
                     .setConstraints(new Constraints.Builder()
                         .setRequiredNetworkType(UserPreferences.isAllowMobileFeedRefresh()
-                            ? NetworkType.CONNECTED : NetworkType.UNMETERED).build())
+                            ? NetworkType.CONNECTED : NetworkType.UNMETERED)
+                        .setRequiresBatteryNotLow(true).build())
                     .build();
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_ID_FEED_UPDATE,
                     replace ? ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
