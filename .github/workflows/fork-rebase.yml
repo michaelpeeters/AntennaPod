@@ -95,11 +95,10 @@ jobs:
           MARKER="[fork-rebase-failure]"
           EXISTING=$(gh issue list --repo "${{ github.repository }}" --search "$MARKER in:title is:open" --json number -q '.[0].number')
           if [ -z "$EXISTING" ]; then
+            BODY=$'Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\nTrigger: ${{ github.event_name }}\nNeeds review at the next weekly Claude session (or sooner if urgent).'
             gh issue create --repo "${{ github.repository }}" \
               --title "$MARKER Rebase/build failed on $(date -u +%Y-%m-%d)" \
-              --body "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-Trigger: ${{ github.event_name }}
-Needs review at the next weekly Claude session (or sooner if urgent)."
+              --body "$BODY"
           else
             echo "Open failure issue #$EXISTING already exists, not creating a duplicate."
           fi
