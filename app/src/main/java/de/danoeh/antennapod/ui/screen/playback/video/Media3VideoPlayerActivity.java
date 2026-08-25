@@ -27,6 +27,7 @@ import de.danoeh.antennapod.event.FeedItemEvent;
 import de.danoeh.antennapod.model.feed.FeedMedia;
 import de.danoeh.antennapod.playback.service.Media3PlaybackService;
 import de.danoeh.antennapod.playback.service.PlaybackController;
+import de.danoeh.antennapod.playback.service.PlaybackServiceStarter;
 import de.danoeh.antennapod.storage.database.DBReader;
 import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
@@ -265,6 +266,9 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(media -> {
                     currentMedia = media;
+                    if (mediaController != null && mediaController.getCurrentMediaItem() == null) {
+                        new PlaybackServiceStarter(this, currentMedia).callEvenIfRunning(true).start();
+                    }
                     FeedItemMenuHandler.onPrepareMenu(viewBinding.controlsView.getToolbar().getMenu(),
                              Collections.singletonList(currentMedia.getItem()));
                 });
