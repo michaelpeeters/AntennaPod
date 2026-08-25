@@ -24,9 +24,19 @@ why `mine` differs from upstream.
 ## Releases / Obtainium
 
 When `fork-rebase.yml` actually advances `mine` (i.e. upstream had new commits), it also
-builds the PlayDebug variant and publishes it to a single rolling GitHub Release tagged
-`fork-latest` — the previous release/tag is deleted first, so there's always exactly one
-release, not one per rebase. Nothing is published on a no-op rebase.
+builds the PlayDebug variant and publishes it as a new GitHub Release tagged `fork-<run
+number>` (e.g. `fork-42`), then deletes any older `fork-*` releases — the new one is created
+*before* the old one is removed, so there's never a window with no release at all. Nothing is
+published on a no-op rebase.
+
+A per-build tag (rather than a single reused `fork-latest` tag edited in place) is
+deliberate: Obtainium tracks a release's own GitHub metadata (tag/id/publish date), not the
+APK's internal `versionCode`, so an in-place-edited release can never look "new" to it no
+matter what changed inside the APK — confirmed the hard way (2026-08-25): a real fix was
+built and uploaded, but Obtainium kept reporting "Installed / Latest" because the tag/release
+identity never changed. `app/build.gradle`'s `versionCode`/`versionName` are also static
+across all commits, so CI additionally bumps `versionCode` per build (base + `run_number`,
+patched only in the workflow, never committed) as a secondary signal.
 
 The APK is signed with a persistent debug keystore stored as the `FORK_DEBUG_KEYSTORE_B64`
 repo secret (base64), restored to `~/.android/debug.keystore` before the build — the same
@@ -34,8 +44,8 @@ key used for local debug builds on this fork, so releases install as an in-place
 rather than requiring an uninstall/reinstall each time.
 
 To track this fork's builds in [Obtainium](https://github.com/ImranR98/Obtainium), add
-`https://github.com/michaelpeeters/AntennaPod` as a GitHub app source — Obtainium finds
-`fork-latest` and its APK asset automatically.
+`https://github.com/michaelpeeters/AntennaPod` as a GitHub app source — Obtainium picks up
+whichever `fork-*` release is newest automatically; no specific tag needs to be configured.
 
 ## Origin PR vs. fork-only
 
