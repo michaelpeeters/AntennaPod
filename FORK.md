@@ -12,18 +12,12 @@ why `mine` differs from upstream.
   freshness.
 - `.github/workflows/fork-rebase.yml` polls `upstream/master` daily (plus manual dispatch),
   rebases `mine` onto it, runs unit tests, and pushes only if green.
-- On failure, the workflow tries to file a `[fork-rebase-failure]` issue for the next weekly
-  Claude session to pick up — but **GitHub Issues are disabled on this repo** (confirmed: `gh
-  issue create`/`list_issues` return `410 Issues has been disabled`, silently, i.e. `list`
-  returns an empty result rather than erroring). This was true for all 3 of the workflow's
-  historical failures so far (runs #3, #8, #9 — all otherwise already resolved by later commits:
-  a flaky-test fix and a YAML indentation bug in the issue-filing step itself), so the
-  issue-based notification path has never actually worked. A fix is written (see Questions for
-  review below) that has the failure step also write `FORK_REBASE_FAILURE.md` to a dedicated
-  `fork-rebase-status` branch (force-pushed, never touches `mine`) as a fallback that doesn't
-  depend on Issues being enabled — but it isn't pushed to `fork-rebase.yml` yet, since this
-  session's credentials lack the `workflow` OAuth scope needed to modify files under
-  `.github/workflows/`.
+- On failure, the workflow files a `[fork-rebase-failure]` issue for the next weekly Claude
+  session to pick up. This was silently broken for the workflow's first 3 historical failures
+  (runs #3, #8, #9 — all otherwise already resolved by later commits: a flaky-test fix and a
+  YAML indentation bug in the issue-filing step itself) because GitHub Issues were disabled on
+  this repo by default; enabled directly (`gh repo edit --enable-issues`), so the mechanism
+  works going forward.
 - Personal patches land on `mine` as cherry-picks of finished commits from their own topic
   branch, not as fresh commits directly on `mine` and not as a branch merge.
 
@@ -258,55 +252,16 @@ Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section
 
 ## Questions for review
 
-- **GitHub Issues are disabled on this repo** (see Branch structure above) — normally these
-  questions would each get filed as a `[claude-question]` issue per the weekly-session
-  workflow, but `gh issue create` returns `410 Issues has been disabled`. Enabling Issues is a
-  one-click toggle under repo Settings → General → Features, if you want the issue-based
-  workflow to actually work going forward; otherwise these questions will keep landing here in
-  FORK.md instead, which is easier to miss. Your call — no strong reason to prefer either, given
-  this is a private/personal fork.
-- **The `fork-rebase-status` fallback fix (above) is written and YAML-validated, but couldn't be
-  pushed this session**: `git push` to `.github/workflows/fork-rebase.yml` was rejected with
-  `refusing to allow an OAuth App to create or update workflow ... without workflow scope`, and
-  the GitHub API (`push_files`/`create_or_update_file`) hit the same restriction (404 on the
-  tree write). Neither this session's git credentials nor its GitHub App token can modify files
-  under `.github/workflows/` — that needs a token with the `workflow` OAuth scope, which a
-  Claude Code session apparently isn't granted here by default. The fix is fully written below;
-  apply it directly (e.g. paste as a patch, or have a session with `workflow` scope push it) —
-  replace the final `File an issue on failure` step in `fork-rebase.yml` with:
-
-  ```yaml
-      - name: Record failure for review
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          MARKER="[fork-rebase-failure]"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          EXISTING=$(gh issue list --repo "${{ github.repository }}" --search "$MARKER in:title is:open" --json number -q '.[0].number' 2>/dev/null || true)
-          if [ -z "$EXISTING" ]; then
-            BODY=$'Run: '"$RUN_URL"$'\nTrigger: ${{ github.event_name }}\nNeeds review at the next weekly Claude session (or sooner if urgent).'
-            gh issue create --repo "${{ github.repository }}" \
-              --title "$MARKER Rebase/build failed on $(date -u +%Y-%m-%d)" \
-              --body "$BODY" 2>&1 || echo "Issue creation failed (Issues may be disabled on this repo) -- falling back to FORK_REBASE_FAILURE.md on the fork-rebase-status branch."
-          else
-            echo "Open failure issue #$EXISTING already exists, not creating a duplicate."
-          fi
-          git fetch origin mine
-          git checkout -B fork-rebase-status origin/mine
-          printf '# Fork rebase failure\n\nDetected: %s\nRun: %s\nTrigger: %s\n\nNeeds review at the next weekly Claude session (or sooner if urgent).\nThis file/branch is a fallback for GitHub issue notifications, which are disabled on this repo.\n' \
-            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_URL" "${{ github.event_name }}" > FORK_REBASE_FAILURE.md
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add FORK_REBASE_FAILURE.md
-          git commit -m "Record fork-rebase failure: $RUN_URL"
-          git push --force origin fork-rebase-status
-  ```
-
-  Until this lands, the failure-notification path stays broken (both the issue-based one, since
-  Issues are disabled, and this fallback, since it isn't pushed yet) — the only way to notice a
-  real rebase/build failure right now is checking the Actions tab directly, or a weekly session
-  doing so proactively rather than trusting a notification to exist.
+- ~~GitHub Issues were disabled on this repo, so `[fork-rebase-failure]`/`[claude-question]`
+  issue filing silently failed every time~~ — **resolved**: Issues enabled directly via
+  `gh repo edit --enable-issues`. The existing `gh issue create` step in `fork-rebase.yml`
+  needs no further change; the drafted `fork-rebase-status`-branch fallback a session wrote
+  for this is unnecessary now and wasn't applied.
+- ~~Should `SynchronizationCredentials` (gpodder.net username/password) be included in the
+  DB/preferences export?~~ — **resolved: no.** It's the only actual credential among the
+  exported preferences, and the export is a plaintext SQLite file that could end up copied to
+  cloud storage, email, etc. Keep excluding it (current behavior). Moot in practice for now
+  since this fork doesn't use gpodder sync anyway.
 - ~~This session's Gradle builds were blocked entirely (dl.google.com 403)~~ — **resolved**:
   the environment's egress allowlist now includes `dl.google.com`, `plugins.gradle.org`,
   `repo.maven.apache.org`, and `services.gradle.org`. Confirmed working: a from-scratch Android
