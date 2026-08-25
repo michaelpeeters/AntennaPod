@@ -247,17 +247,16 @@ section above.
 
 ## Questions for review
 
-- **This session's Gradle builds were blocked entirely.** The cloud environment's egress
-  policy returns a 403 on `dl.google.com` (confirmed on retry, not transient), which the
-  Android Gradle Plugin needs to resolve — so no `./gradlew` task, build or test, could run at
-  all. `maven.google.com` (an alternate official Google Maven host serving the same artifacts)
-  was reachable, but per the proxy's own guidance ("do not retry or route around it — report
-  the blocked host") this session did not attempt to substitute it into `settings.gradle`
-  rather than decide unilaterally to change shared build config to work around an org policy
-  denial. Please either allowlist `dl.google.com` for this environment, or confirm that
-  pointing `google()` at `maven.google.com` is an acceptable substitution, so future unattended
-  sessions here can actually verify their changes.
-- **DB+preferences export (`db-preferences-export` branch, unverified — see above)**: should
+- ~~This session's Gradle builds were blocked entirely (dl.google.com 403)~~ — **resolved**:
+  the environment's egress allowlist now includes `dl.google.com`, `plugins.gradle.org`,
+  `repo.maven.apache.org`, and `services.gradle.org`. Confirmed working: a from-scratch Android
+  SDK install (`cmdline-tools`, `platform-tools`, `platforms;android-36`, `build-tools;36.0.0`
+  under a session-local `sdk.dir`, since no SDK ships in this environment) plus
+  `:storage:importexport:test` and `:app:assembleDebug` both pass. Note for future sessions
+  here: `maven.google.com` is *not* a usable fallback if `dl.google.com` is ever blocked again —
+  it 301-redirects every artifact request straight to `dl.google.com`, so it fails identically.
+- **DB+preferences export**: landed on `mine` (cherry-picked from the `db-preferences-export`
+  topic branch, now verified — build and tests green). Still open: should
   `SynchronizationCredentials` (the gpodder.net username/password, currently excluded) be
   included in the exported preferences table? It's the only preference data that's an actual
   credential rather than a setting, and the export is a plaintext SQLite file that could end up
