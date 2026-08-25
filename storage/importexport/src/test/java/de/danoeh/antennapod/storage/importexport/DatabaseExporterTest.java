@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
-import androidx.preference.PreferenceManager;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.SleepTimerPreferences;
 import org.junit.After;
@@ -51,9 +50,13 @@ public class DatabaseExporterTest {
         }
     }
 
+    private SharedPreferences defaultPrefs() {
+        return context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+    }
+
     @Test
     public void testExportWritesPreferencesTable() throws Exception {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        defaultPrefs().edit()
                 .putBoolean("some_bool_pref", true)
                 .putString("some_string_pref", "hello")
                 .apply();
@@ -78,7 +81,7 @@ public class DatabaseExporterTest {
         Set<String> tags = new HashSet<>();
         tags.add("news");
         tags.add("tech");
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        defaultPrefs().edit()
                 .putBoolean("some_bool_pref", true)
                 .putLong("some_long_pref", 42L)
                 .putStringSet("some_set_pref", tags)
@@ -88,13 +91,13 @@ public class DatabaseExporterTest {
 
         exportToBackupFile();
 
-        PreferenceManager.getDefaultSharedPreferences(context).edit().clear().apply();
+        defaultPrefs().edit().clear().apply();
         context.getSharedPreferences(SleepTimerPreferences.PREF_NAME, Context.MODE_PRIVATE)
                 .edit().clear().apply();
 
         DatabaseExporter.importBackup(Uri.fromFile(backupFile), context);
 
-        SharedPreferences restored = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences restored = defaultPrefs();
         assertTrue(restored.getBoolean("some_bool_pref", false));
         assertEquals(42L, restored.getLong("some_long_pref", 0));
         assertEquals(tags, restored.getStringSet("some_set_pref", null));
@@ -104,7 +107,7 @@ public class DatabaseExporterTest {
 
     @Test
     public void testImportBackupWithoutPreferencesTableDoesNotThrow() throws Exception {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
+        defaultPrefs().edit()
                 .putBoolean("kept_pref", true)
                 .apply();
 
@@ -116,6 +119,6 @@ public class DatabaseExporterTest {
 
         DatabaseExporter.importBackup(Uri.fromFile(backupFile), context);
 
-        assertFalse(PreferenceManager.getDefaultSharedPreferences(context).contains("nonexistent"));
+        assertFalse(defaultPrefs().contains("nonexistent"));
     }
 }
