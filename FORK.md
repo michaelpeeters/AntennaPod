@@ -25,9 +25,14 @@ why `mine` differs from upstream.
 
 When `fork-rebase.yml` actually advances `mine` (i.e. upstream had new commits), it also
 builds the PlayDebug variant and publishes it as a new GitHub Release tagged `fork-<run
-number>` (e.g. `fork-42`), then deletes any older `fork-*` releases — the new one is created
-*before* the old one is removed, so there's never a window with no release at all. Nothing is
-published on a no-op rebase.
+number>` (e.g. `fork-42`), then prunes older `fork-*` releases down to the 3 most recent
+(APK storage is the only real cost) — the new one is created *before* any old one is removed,
+so there's never a window with no release at all. Nothing is published on a no-op rebase.
+
+Pruning only deletes the *release* (and its APK asset), never the underlying git tag — every
+`fork-<run number>` tag stays in the repo permanently, even once its release is gone. Tags are
+just cheap refs, and keeping them means any past build can still be identified/reverted to (or
+rebuilt from) by commit, even years later, without having to keep every APK around.
 
 A per-build tag (rather than a single reused `fork-latest` tag edited in place) is
 deliberate: Obtainium tracks a release's own GitHub metadata (tag/id/publish date), not the
