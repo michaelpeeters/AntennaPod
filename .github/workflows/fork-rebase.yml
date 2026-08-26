@@ -96,6 +96,11 @@ jobs:
           # prune the old one(s) *after* the new release exists, so there's
           # never a window with no release at all (the failure mode that
           # in-place editing was originally introduced to avoid).
+          #
+          # Keep the APK asset for only the last 3 releases (storage), but
+          # never delete the git tags themselves (--cleanup-tag omitted) so
+          # every build stays revertable-to by tag/commit even after its
+          # APK is gone; rebuilding an old APK from its tag is cheap.
           TAG="fork-$GITHUB_RUN_NUMBER"
           SHA=$(git rev-parse --short HEAD)
           TITLE="Fork build $(date -u +%Y-%m-%d) ($SHA)"
@@ -103,8 +108,9 @@ jobs:
           gh release create "$TAG" app/build/outputs/apk/play/debug/app-play-debug.apk \
             --repo "${{ github.repository }}" --title "$TITLE" --notes "$NOTES"
           gh release list --repo "${{ github.repository }}" --json tagName -q '.[].tagName' \
-            | grep -E '^fork-([0-9]+|latest)$' | grep -v "^$TAG\$" \
-            | xargs -r -n1 gh release delete --repo "${{ github.repository }}" --yes --cleanup-tag
+            | grep -E '^fork-([0-9]+|latest)$' \
+            | tail -n +4 \
+            | xargs -r -n1 gh release delete --repo "${{ github.repository }}" --yes
       - name: File an issue on failure
         if: failure()
         env:
