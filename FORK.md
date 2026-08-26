@@ -286,11 +286,8 @@ Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section
   here: `maven.google.com` is *not* a usable fallback if `dl.google.com` is ever blocked again —
   it 301-redirects every artifact request straight to `dl.google.com`, so it fails identically.
 - **DB+preferences export**: landed on `mine` (cherry-picked from the `db-preferences-export`
-  topic branch, now verified — build and tests green). Still open: should
-  `SynchronizationCredentials` (the gpodder.net username/password, currently excluded) be
-  included in the exported preferences table? It's the only preference data that's an actual
-  credential rather than a setting, and the export is a plaintext SQLite file that could end up
-  copied to cloud storage, email, etc. Current implementation only exports the default
-  SharedPreferences file and `SleepTimerPreferences`; `SynchronizationSettings` (non-credential
-  sync config) and `UsageStatistics` were also left out as lower-value, not for privacy
-  reasons — happy to add either on request.
+  topic branch, now verified — build and tests green). The `SynchronizationCredentials`
+  question above covers this feature's only open credential question (resolved: no). Current
+  implementation only exports the default SharedPreferences file and `SleepTimerPreferences`;
+  `SynchronizationSettings` (non-credential sync config) and `UsageStatistics` were also left
+  out as lower-value, not for privacy reasons — happy to add either on request.
