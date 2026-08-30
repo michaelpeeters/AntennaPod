@@ -203,17 +203,42 @@ plus reading `PlaybackServiceStateManager.java`):
 
 Tested as a manual, reversible mitigation: `adb shell dumpsys deviceidle whitelist
 +de.danoeh.antennapod.debug` (equivalent to enabling "Unrestricted battery usage" for the app
-in Android Settings). Not yet confirmed whether this alone resolves the symptom in practice —
-needs a real-world pause/resume-via-headphone test over the following days. This only
-addresses cause 1; cause 2 (foreground-service status genuinely dropping on pause) is a
-separate, code-level gap and needs its own fix — candidates worth evaluating: requesting the
-battery-optimization exemption from within the app (with user consent, since this is a
-system permission prompt) so it isn't dependent on a manual device setting, and/or keeping a
-lighter-weight but still-alive component (e.g. a shorter-lived foreground grace period, or
-relying on `MediaSessionService`'s own lifecycle rather than manual `stopForeground` calls)
-so a paused-but-resumable session survives long enough for a media-button press to reach it.
-Needs upstream-compatibility judgment before implementing — this touches core service
-lifecycle behavior shared with stock AntennaPod, not a fork-only corner.
+in Android Settings) — **resolved: option B (manual workaround, no code change), confirmed
+active on-device.** This addresses the standard AOSP Doze whitelist only.
+
+**Motorola devices need a second, separate exclusion.** On top of the AOSP Doze whitelist,
+Moto phones ship a proprietary background-app killer, `com.motorola.batterycare`
+(`smartbackground.activity.BackgroundSettingActivity`, exposed in Settings as "Smart Use" /
+Battery Care → background app management), which is independent of `dumpsys deviceidle` and
+not visible via `dumpsys`/`cmd appops` from adb. Confirmed via an on-device test: with the
+process paused and backgrounded but *before* setting Smart Use, `adb shell am kill` could not
+kill the process at all (`oom adj=50`, still protected under stock Android's own memory
+management) — meaning the real-world kill reports are from this OEM layer, not from Doze or
+from `stopForeground()`. Mitigation: set AntennaPod's Smart Use entry to **"Always allow."**
+No adb equivalent exists — Smart Use only has a private `ContentProvider`
+(`com.motorola.batterycare/.provider.SummaryProvider`, guarded by proprietary
+`READ_MODE`/`WRITE_MODE` permissions not exposed to `shell`), so this is a **GUI-only**
+setting. Expected to survive app updates (keyed by package name, same as the Doze whitelist
+entry), resets only on uninstall or package-name change (e.g. debug vs. release variant).
+
+This only addresses cause 1; cause 2 (foreground-service status genuinely dropping on pause)
+is a separate, code-level gap. Note Android already has a built-in wake-without-foreground
+hook for this: `MediaSession` registers a `PendingIntent` targeting a manifest-declared
+`<receiver>` (AntennaPod has both `androidx.media3.session.MediaButtonReceiver` and the
+legacy `de.danoeh.antennapod.playback.service.MediaButtonReceiver` in
+`playback/service/src/main/AndroidManifest.xml`) with the platform's `MediaSessionManager`;
+the OS can cold-start the app via that receiver on a media-button/BT AVRCP press without any
+live foreground process, the same way a `BOOT_COMPLETED` receiver works. The likely remaining
+gap isn't lack of foreground status — it's that `Media3PlaybackService.onDestroy()`
+unconditionally calls `mediaSession.release()`, which actively unregisters that
+receiver/session association with `MediaSessionManager` if `onDestroy()` runs as part of a
+kill. Worth confirming with a real kill (now that both the Doze and Smart Use exclusions are
+set) before deciding whether cause 2 needs any code change at all — candidates if it does:
+requesting the battery-optimization exemption from within the app (with user consent), a
+bounded foreground grace period after pause, or guarding the `release()` call in `onDestroy()`
+so a kill doesn't tear down the receiver registration. Needs upstream-compatibility judgment
+before implementing — this touches core service lifecycle behavior shared with stock
+AntennaPod, not a fork-only corner.
 
 ## Investigation notes: battery usage
 
