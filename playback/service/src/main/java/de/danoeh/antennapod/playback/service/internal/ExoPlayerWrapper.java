@@ -101,7 +101,9 @@ public class ExoPlayerWrapper {
                 DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS);
         loadControl.setBackBuffer((int) TimeUnit.MINUTES.toMillis(5), true);
         trackSelector = new DefaultTrackSelector(context);
-        exoPlayer = new ExoPlayer.Builder(context, new DefaultRenderersFactory(context))
+        DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context)
+                .forceDisableMediaCodecAsynchronousQueueing();
+        exoPlayer = new ExoPlayer.Builder(context, renderersFactory)
                 .setTrackSelector(trackSelector)
                 .setLoadControl(loadControl.build())
                 .build();
