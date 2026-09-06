@@ -196,6 +196,11 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
                 viewBinding.playerView.setPlayer(mediaController);
                 setupPictureInPicture();
                 setupMedia3Listeners();
+                if (mediaController.isPlaying()) {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                } else {
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                }
             } catch (ExecutionException | InterruptedException e) {
                 Log.e(TAG, "Error getting media controller", e);
             }
@@ -225,6 +230,7 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
     protected void onResume() {
         super.onResume();
         viewBinding.playerView.setUseController(false);
+        setupFullScreenMode();
     }
 
     private void setupMedia3Listeners() {
