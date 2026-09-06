@@ -81,6 +81,19 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
 - **Hardware media-button (e.g. Bluetooth remote) skip fix** (PR #8671): needed no separate
   action — already merged into `origin/master`, so `mine` gets it automatically by tracking
   master.
+- **Video screen-off-after-resume / non-fullscreen fix** (fork-only, from
+  `fix-video-fullscreen-lock-resume`): reported symptom — pause a fullscreen video, wait, press
+  play again: audio resumes but the screen stays black; unlocking shows the video but not
+  fullscreen, and the screen goes dark again after a while (audio keeps playing). Root cause:
+  `Media3VideoPlayerActivity` only synced `FLAG_KEEP_SCREEN_ON` reactively inside
+  `Player.Listener.onIsPlayingChanged`, and only applied the immersive fullscreen UI flags once
+  in `onCreate`. If the activity is stopped (screen locked) and playback resumes from the lock
+  screen before the activity restarts, the controller is already playing by the time the
+  listener reattaches in `onStart`, so `onIsPlayingChanged` never fires and the screen-on flag
+  is never re-added; the fullscreen flags also never got reapplied on resume. Fix: explicitly
+  sync `FLAG_KEEP_SCREEN_ON` with `mediaController.isPlaying()` when the controller reattaches
+  in `onStart`, and reapply `setupFullScreenMode()` in `onResume`. Not proposed upstream yet
+  (see Questions for review).
 
 ### Deferred, not on `mine` yet
 
@@ -310,6 +323,11 @@ Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section
   `:storage:importexport:test` and `:app:assembleDebug` both pass. Note for future sessions
   here: `maven.google.com` is *not* a usable fallback if `dl.google.com` is ever blocked again —
   it 301-redirects every artifact request straight to `dl.google.com`, so it fails identically.
+- **Video screen-off/non-fullscreen fix**: kept fork-only for now (2026-09-06), not filed as an
+  upstream issue or PR yet. No matching open upstream issue was found — the closest is #7933
+  ("Playback behaviour when locking phone different for audio vs video podcasts", closed as a
+  duplicate with no linked issue), which is adjacent (video + lock screen) but doesn't describe
+  this exact symptom. Revisit filing upstream once this has some real-world runtime on-device.
 - **DB+preferences export**: landed on `mine` (cherry-picked from the `db-preferences-export`
   topic branch, now verified — build and tests green). The `SynchronizationCredentials`
   question above covers this feature's only open credential question (resolved: no). Current
