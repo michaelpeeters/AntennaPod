@@ -187,6 +187,32 @@ Local/streaming and video/audio duration splits are not alternatives — they fi
 non-overlapping cases. Local/streaming does nothing for a *streamed* video podcast, which is
 exactly the case the 773MB RSS measurement above covers.
 
+### `BufferPriorityRegressionTest` intermittent CI failures (2026-09-06)
+
+`legacyBuffer_withPriorityFlag_keepsLoadingPastByteCapCheckpoint` failed twice in a row on
+`fork-rebase.yml` CI (stalling around 374-375s instead of the ~600s checkpoint), while passing
+consistently locally (6/6 runs, including once under real 8-core CPU contention) and on a
+subsequent CI run. The test's own inline comment blamed "real elapsed wall-clock time," which
+turned out to be wrong — bytecode inspection of media3 1.11.0's `DefaultLoadControl` (added by
+this fork's own media3 bump above) showed `shouldContinueLoading()` only honors
+`prioritizeTimeOverSizeThresholds` while a private `heapHasEnoughHeadroomForPrioritizeTimeOverSizeThreshold()`
+guard holds: once the JVM heap has grown to its max size, it requires `freeMemory() +
+allocator.getUnusedBytesAllocated() >= maxMemory() / 25` (4% of max heap), logging "Stopped
+loading before minBufferUs reached due to memory pressure" when it doesn't.
+
+A diagnostic step temporarily added to a throwaway branch confirmed the actual runner spec:
+GitHub's public-repo `ubuntu-latest` runner gives 4 vCPUs and ~15GiB RAM, with the JVM's
+ergonomic (unset `-Xmx`) default max heap coming out to ~3.9GB — plausible headroom on paper,
+but `org.gradle.parallel=true` (set by this workflow) runs multiple modules' test JVMs
+concurrently against that same fixed 15GiB budget, so any one JVM's actual free heap at the
+moment of the check is contention-dependent, not deterministic. Confirmed borderline/intermittent
+rather than a hard per-run cap: the test passed on the very next CI run with no code change.
+
+Fix: gave `:playback:service`'s unit-test JVM an explicit `maxHeapSize = "2g"` (via
+`testOptions.unitTests.all` in its `build.gradle`) so it doesn't have to rely on ergonomic
+defaults shared with concurrent test JVMs, and corrected the test's inline comment to describe
+the real mechanism instead of the wrong wall-clock guess.
+
 ## Investigation notes: anti-kill (playback process killed after pause)
 
 Symptom (real device, Moto G73 5G, 2026-08-24): once playback pauses/stops, the app process
