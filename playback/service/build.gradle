@@ -13,6 +13,15 @@ android {
         // class file for com.google.j2objc.annotations.ReflectionSupport$Level not found
         options.compilerArgs.removeAll { it == "-Werror" }
     }
+
+    testOptions {
+        unitTests.all {
+            // BufferPriorityRegressionTest allocates buffers up to Media3's DefaultLoadControl
+            // byte budget; on a constrained default test-JVM heap, DefaultLoadControl's own
+            // heap-headroom guard can trip and stall the simulated load early. See FORK.md.
+            maxHeapSize = "2g"
+        }
+    }
 }
 
 dependencies {
