@@ -48,8 +48,12 @@ public class BufferPriorityRegressionTest {
                 (int) TimeUnit.HOURS.toMillis(1), (int) TimeUnit.HOURS.toMillis(3), true, checkpointUs,
                 MediaItem.EMPTY);
 
-        // DefaultLoadControl factors in real elapsed wall-clock time internally, so under CPU
-        // load the checkpoint can be reached a little early; allow some tolerance for that.
+        // DefaultLoadControl's shouldContinueLoading() only honors prioritizeTimeOverSizeThresholds
+        // while heapHasEnoughHeadroomForPrioritizeTimeOverSizeThreshold() holds (free heap +
+        // unused allocated bytes >= 4% of the JVM's max heap, once the heap has grown to that
+        // max). On a constrained test-JVM heap this can trip before the checkpoint is reached,
+        // stalling the simulated load early; allow some tolerance for that. See maxHeapSize in
+        // this module's build.gradle.
         long toleranceUs = TimeUnit.SECONDS.toMicros(90);
         assertTrue("Expected to keep loading up to (near) the " + TimeUnit.MICROSECONDS.toSeconds(checkpointUs)
                 + "s checkpoint; stalled at " + TimeUnit.MICROSECONDS.toSeconds(stalledAtUs) + "s",
