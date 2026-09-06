@@ -252,6 +252,11 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
                 }
             }
         });
+        viewBinding.controlsView.setPlayButtonShowsPlay(Util.shouldShowPlayButton(mediaController));
+        if (mediaController.getDuration() > 0) {
+            viewBinding.controlsView.updatePosition((int) mediaController.getCurrentPosition(),
+                    (int) mediaController.getDuration(), mediaController.getPlaybackParameters().speed);
+        }
         loadMediaInfo();
     }
 
