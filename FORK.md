@@ -95,18 +95,21 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   in `onStart`, and reapply `setupFullScreenMode()` in `onResume`. Not proposed upstream yet
   (see Questions for review).
 
-### Deferred, not on `mine` yet
+- **Buffer duration follow-ups** (cherry-picked from `buffer-control-followups`), two
+  refinements on top of the buffer size/duration mismatch fix above:
+  - splitting local/downloaded playback onto Media3's own (much smaller) local-playback buffer
+    defaults instead of the streaming target, since local files don't need it;
+  - capping the streaming buffer duration specifically when a video track is present, since the
+    same duration target costs far more memory for video than audio.
 
-A further branch, `buffer-control-followups`, has two more refinements on top of the above,
-both implemented and tested:
-- splitting local/downloaded playback onto Media3's own (much smaller) local-playback buffer
-  defaults instead of the streaming target, since local files don't need it;
-- capping the streaming buffer duration specifically when a video track is present, since the
-  same duration target costs far more memory for video than audio.
-
-Left off `mine` for now: they diverge further from upstream for benefit that's currently more
-theoretical than demonstrated. Revisit if real-world evidence (e.g. actual OOM/freeze reports
-on video streams) justifies it.
+  Promoted onto `mine` on 2026-09-08 after real-world evidence: a hard `OutOfMemoryError` crash
+  (`FATAL EXCEPTION: ExoPlayer:Playback`, in `ExoPlayerImplInternal.shouldContinueLoading`) hit
+  a real device (Moto G73 5G) while `Media3PlaybackService` was playing in the background during
+  a mass feed refresh. The crash confirms the media3 1.11.0 heap-headroom guard alone isn't
+  sufficient protection; couldn't conclusively confirm from on-device logs whether a video or
+  audio stream was playing at the time (the per-process logcat ring had already rotated past the
+  relevant lines), but this is exactly the scenario the deferred follow-ups were held back
+  pending.
 
 ## Investigation notes: the buffer freeze fix
 
