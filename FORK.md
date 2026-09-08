@@ -111,6 +111,16 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   relevant lines), but this is exactly the scenario the deferred follow-ups were held back
   pending.
 
+- **Anti-kill mitigations** (fork-only): `ExoPlayerWrapper` forces synchronous `MediaCodec`
+  callbacks (avoids a native async-callback abort seen on-device) and keeps CPU/WiFi awake
+  during screen-off streaming playback, to guard against the stall/kill risk documented in the
+  anti-kill investigation below. Matches upstream issue #8666; not yet proposed upstream (see
+  Questions for review). Does not address anti-kill cause 2 (foreground-service status
+  genuinely dropping on pause) — still open.
+- **Defer hourly feed refresh when battery is low** (fork-only): skips the periodic
+  auto-refresh `WorkManager` job while the device reports low battery, motivated by the battery
+  usage investigation below (possibly related to upstream issue #8185).
+
 ## Investigation notes: the buffer freeze fix
 
 ### Why prioritize duration over byte-size
@@ -223,6 +233,13 @@ gets killed very quickly by the OS. Pressing play on a Bluetooth headphone/remot
 does nothing until the app is manually reopened — the media button never reaches a live
 receiver.
 
+Matches upstream issue **#8666** ("Earbud button playback resumption does not work after 1
+minute", open as of 2026-09-08) almost exactly: pause playback, wait ~1 minute, the
+notification/media-button play control stops working until the app is manually reopened.
+Not yet linked/proposed upstream (see Questions for review) — this session's fixes
+(`ffe96cf09` synchronous MediaCodec, `2b1ede38f` CPU/WiFi wake during screen-off streaming)
+are relevant mitigations, but the deeper code-level gap (cause 2 below) is still open.
+
 Two concrete causes confirmed directly on-device (`adb shell dumpsys deviceidle whitelist`,
 plus reading `PlaybackServiceStateManager.java`):
 
@@ -283,6 +300,11 @@ before implementing — this touches core service lifecycle behavior shared with
 AntennaPod, not a fork-only corner.
 
 ## Investigation notes: battery usage
+
+Plausibly related to upstream issue **#8185** ("Very High Battery Drain reported in Android
+Battery Setting", open as of 2026-09-08) — reported drain is mostly background/screen-off
+listening time, consistent with the wakelock/buffer findings below. Less exact a match than
+#8666 above (drain vs. specifically background-kill); not yet linked/proposed upstream.
 
 Read-only investigation of `:playback:service` (the active `Media3PlaybackService`/
 `ExoPlayerWrapper` implementation; the legacy `PlaybackService`/`LocalPSMP` classes throw if
@@ -357,6 +379,12 @@ Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section
   ("Playback behaviour when locking phone different for audio vs video podcasts", closed as a
   duplicate with no linked issue), which is adjacent (video + lock screen) but doesn't describe
   this exact symptom. Revisit filing upstream once this has some real-world runtime on-device.
+- **Anti-kill fixes vs. #8666**: matching upstream issue identified (2026-09-08), but not
+  proposing a PR yet — the two mitigations already on `mine` (synchronous MediaCodec, CPU/WiFi
+  wake) are unconfirmed as a full fix, and the deeper code-level gap (cause 2: foreground-service
+  status genuinely dropping on pause) still needs upstream-compatibility judgment before any
+  code change. Deliberately holding off proposing anything upstream until there's more
+  confidence/runtime behind it.
 - **DB+preferences export**: landed on `mine` (cherry-picked from the `db-preferences-export`
   topic branch, now verified — build and tests green). The `SynchronizationCredentials`
   question above covers this feature's only open credential question (resolved: no). Current
