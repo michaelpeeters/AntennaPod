@@ -345,8 +345,18 @@ playback.
    on implicit foreground-service protection (which the anti-kill investigation above shows is
    already unreliable on pause).
 2. Consider relaxing the 1s position-observer cadence to match the 5s DB-save interval when the
-   app UI isn't visible, since the EventBus position broadcast is only needed for UI. Not
-   implemented.
+   app UI isn't visible, since the EventBus position broadcast is only needed for UI. **Revisited
+   2026-09-09: not a safe quick fix as originally scoped.** The same 1s tick in
+   `Media3PlaybackService.setupPositionObserver()` also drives `SkipUtils.skipEndingIfNecessary()`,
+   which fires only within a narrow (~1s, speed-scaled) window before the configured skip point —
+   unlike the EventBus/widget broadcast, this has nothing to do with UI visibility, so relaxing the
+   whole tick to 5s while backgrounded would very likely make "skip ending" silently stop working
+   for background playback, the most common case for audio podcasts. There's also no existing
+   "UI visible" signal inside the playback service to gate on (no controller-connection or
+   activity-lifecycle tracking) — that would need new plumbing. Would need `skipEndingIfNecessary`
+   decoupled onto its own independent 1s timer before the EventBus/widget cadence could be safely
+   relaxed. Still not implemented; now correctly scoped as a larger change than originally
+   described.
 3. Delete the dead `LocalPSMP`/legacy `PlaybackService` wifi-lock code during a future cleanup,
    to avoid confusion (not urgent, not user-facing). Not implemented.
 4. ~~Verify/add `Constraints.Builder().setRequiresBatteryNotLow(true)`~~ — **implemented**: on
