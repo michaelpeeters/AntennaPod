@@ -120,6 +120,16 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
 - **Defer hourly feed refresh when battery is low** (fork-only): skips the periodic
   auto-refresh `WorkManager` job while the device reports low battery, motivated by the battery
   usage investigation below (possibly related to upstream issue #8185).
+- **Mini player play/pause button missing for video episodes** (landed directly on `mine`,
+  2026-09-13): `ExternalPlayerFragment.updateUi()` set `butPlay.setVisibility(View.GONE)`
+  whenever the current episode's `MediaType` was `VIDEO`, so the bottom mini player showed the
+  title/feed name but no play/pause control at all — confirmed on-device (Moto G73) via
+  screenshot. This is a regression of upstream issue **#4223** (2020), originally fixed by PR
+  **#4485**; that fix was lost when `4cc6a755e` ("Re-add skip silence setting to new playback
+  service", PR #8308, Media3 rewrite) reintroduced the same `setVisibility(View.GONE)` line.
+  Fix here just keeps `butPlay` visible for video too. Not upstream-specific in any way — a
+  good candidate for an upstream PR (see Questions for review); kept on `mine` in the meantime
+  since it's a plain regression fix with no fork-specific reasoning behind it.
 
 ## Investigation notes: the buffer freeze fix
 
@@ -401,3 +411,9 @@ Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section
   implementation only exports the default SharedPreferences file and `SleepTimerPreferences`;
   `SynchronizationSettings` (non-credential sync config) and `UsageStatistics` were also left
   out as lower-value, not for privacy reasons — happy to add either on request.
+- **Mini player play/pause button fix vs. #4223**: landed directly on `mine` (2026-09-13), not
+  proposed upstream yet. Good upstream PR candidate — plain regression fix of previously-fixed
+  upstream behavior, no fork-specific reasoning. The original PR #4485 also made tapping play on
+  a paused video open the video activity directly (not just toggle in place); this fix doesn't
+  restore that extra behavior, only the button's visibility/toggle. Revisit both before
+  proposing upstream.
