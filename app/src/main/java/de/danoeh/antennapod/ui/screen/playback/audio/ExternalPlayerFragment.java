@@ -180,12 +180,11 @@ public class ExternalPlayerFragment extends Fragment {
                 .apply(options)
                 .into(imgvCover);
 
+        butPlay.setVisibility(View.VISIBLE);
         if (currentMedia.getMediaType() == MediaType.VIDEO) {
-            butPlay.setVisibility(View.GONE);
             ((MainActivity) getActivity()).getBottomSheet().setLocked(true);
             ((MainActivity) getActivity()).getBottomSheet().setState(BottomSheetBehavior.STATE_COLLAPSED);
         } else {
-            butPlay.setVisibility(View.VISIBLE);
             ((MainActivity) getActivity()).getBottomSheet().setLocked(false);
         }
     }
