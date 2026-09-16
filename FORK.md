@@ -367,12 +367,20 @@ playback.
    decoupled onto its own independent 1s timer before the EventBus/widget cadence could be safely
    relaxed. Still not implemented; now correctly scoped as a larger change than originally
    described.
-3. Delete the dead `LocalPSMP`/legacy `PlaybackService` wifi-lock code during a future cleanup,
-   to avoid confusion (not urgent, not user-facing). Not implemented.
+3. ~~Delete the dead `LocalPSMP`/legacy `PlaybackService` wifi-lock code during a future
+   cleanup~~ — **implemented (2026-09-16)**: removed the wifi-lock field, abstract
+   `shouldLockWifi()` hook, `acquireWifiLockIfNecessary()`/`releaseWifiLockIfNecessary()`, and
+   all call sites/overrides in `PlaybackServiceMediaPlayer`, `LocalPSMP`, and `CastPsmp`. Scoped
+   deliberately narrow: only the wifi-lock feature was removed, not the legacy `LocalPSMP`/
+   `PlaybackService` classes themselves, which are still referenced from ~15+ files across the
+   `app` module (action buttons, notification builder, Wear support, the manifest `<service>`
+   entry, and the only connected-device test coverage for local playback,
+   `PlaybackServiceMediaPlayerTest`/`PlaybackServiceTaskManagerTest`) — a full removal of those
+   classes is a much larger, separate cleanup with no replacement test coverage lined up yet.
 4. ~~Verify/add `Constraints.Builder().setRequiresBatteryNotLow(true)`~~ — **implemented**: on
    the hourly feed-refresh `PeriodicWorkRequest`, so refreshes defer under low battery.
 
-Items 2 and 3 remain investigation-only write-ups, same as the anti-kill section above.
+Item 2 remains an investigation-only write-up, same as the anti-kill section above.
 
 ## Questions for review
 
