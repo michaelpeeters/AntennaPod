@@ -549,11 +549,6 @@ public class CastPsmp extends PlaybackServiceMediaPlayer {
     }
 
     @Override
-    protected boolean shouldLockWifi() {
-        return false;
-    }
-
-    @Override
     public boolean isCasting() {
         return true;
     }
