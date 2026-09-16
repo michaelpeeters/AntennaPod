@@ -226,7 +226,6 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
             if (focusGained == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 Log.d(TAG, "Audiofocus successfully requested");
                 Log.d(TAG, "Resuming/Starting playback");
-                acquireWifiLockIfNecessary();
 
                 setPlaybackParams(PlaybackSpeedUtils.getCurrentPlaybackSpeed(media),
                         PlaybackSpeedUtils.getCurrentSkipSilencePreference(media)
@@ -263,7 +262,6 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
      */
     @Override
     public void pause(final boolean abandonFocus, final boolean reinit) {
-        releaseWifiLockIfNecessary();
         if (playerStatus == PlayerStatus.PLAYING) {
             Log.d(TAG, "Pausing playback.");
             mediaPlayer.pause();
@@ -338,7 +336,6 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
     @Override
     public void reinit() {
         Log.d(TAG, "reinit()");
-        releaseWifiLockIfNecessary();
         if (media != null) {
             playMediaObject(media, true, stream, startWhenPrepared.get(), false);
         } else if (mediaPlayer != null) {
@@ -540,7 +537,6 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
         androidAutoConnectionState.removeObserver(androidAutoConnectionObserver);
         isShutDown = true;
         abandonAudioFocus();
-        releaseWifiLockIfNecessary();
     }
 
     @Override
@@ -681,8 +677,6 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
     @Override
     protected void endPlayback(final boolean hasEnded, final boolean wasSkipped,
                                     boolean shouldContinue, final boolean toStoppedState) {
-        releaseWifiLockIfNecessary();
-
         callback.episodeFinishedPlayback(); // notify that the current episode just finished
 
         boolean isPlaying = playerStatus == PlayerStatus.PLAYING;
@@ -742,18 +736,11 @@ public class LocalPSMP extends PlaybackServiceMediaPlayer {
      * abandoning audio focus have to be done with other methods.
      */
     private void stop() {
-        releaseWifiLockIfNecessary();
-
         if (playerStatus == PlayerStatus.INDETERMINATE) {
             setPlayerStatus(PlayerStatus.STOPPED, null);
         } else {
             Log.d(TAG, "Ignored call to stop: Current player state is: " + playerStatus);
         }
-    }
-
-    @Override
-    protected boolean shouldLockWifi() {
-        return stream;
     }
 
     private void setMediaPlayerListeners(ExoPlayerWrapper mp) {
