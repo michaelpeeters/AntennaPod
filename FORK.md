@@ -384,6 +384,19 @@ Item 2 remains an investigation-only write-up, same as the anti-kill section abo
 
 ## Questions for review
 
+- ~~`fix-hardware-button-remap-dedup` topic branch (Gadgetbridge/car-head-unit direct
+  transport-control remap, targeting upstream #8645) never cherry-picked onto `mine`~~ —
+  **resolved: superseded, no action needed.** Investigated 2026-09-23 while cherry-picking its
+  3 commits: upstream already landed functionally equivalent logic independently — commit
+  `5a0726b0e` ("Fix widget not updating to prepared episode (#8792)"), pulled into `mine` by
+  the daily rebase, adds the same fix via `ForwardingPlayer`'s
+  `seekToNextMediaItem()`/`seekToNext()`/`seekToPreviousMediaItem()`/`seekToPrevious()`
+  overrides gated on a new `isRequestOfOtherApp()` helper (identical intent and even the same
+  "Some controllers (e.g. Gadgetbridge) call this directly..." comment). The topic branch's own
+  approach (intercepting in `MediaLibrarySessionCallback.onPlayerCommandRequest` instead) would
+  only duplicate/conflict with what's already in place, so it was not cherry-picked. Branch left
+  on `origin` as-is (not deleted) in case its dedup-into-shared-helper refactor is ever wanted
+  for something else, but its actual bug fix is moot.
 - ~~GitHub Issues were disabled on this repo, so `[fork-rebase-failure]`/`[claude-question]`
   issue filing silently failed every time~~ — **resolved**: Issues enabled directly via
   `gh repo edit --enable-issues`. The existing `gh issue create` step in `fork-rebase.yml`
