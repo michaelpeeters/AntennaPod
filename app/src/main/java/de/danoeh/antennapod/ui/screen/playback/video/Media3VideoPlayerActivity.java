@@ -14,6 +14,7 @@ import android.view.WindowManager;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.media3.common.C;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.Util;
 import androidx.media3.session.MediaController;
@@ -193,6 +194,7 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
         controllerFuture.addListener(() -> {
             try {
                 mediaController = controllerFuture.get();
+                setVideoTrackDisabled(false);
                 viewBinding.playerView.setPlayer(mediaController);
                 setupPictureInPicture();
                 setupMedia3Listeners();
@@ -207,6 +209,16 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
         }, MoreExecutors.directExecutor());
     }
 
+    private void setVideoTrackDisabled(boolean disabled) {
+        if (!mediaController.isCommandAvailable(Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS)) {
+            return;
+        }
+        mediaController.setTrackSelectionParameters(mediaController.getTrackSelectionParameters()
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, disabled)
+                .build());
+    }
+
     @Override
     protected void onStop() {
         super.onStop();
@@ -216,6 +228,7 @@ public class Media3VideoPlayerActivity extends AppCompatActivity implements Tool
         }
         viewBinding.playerView.setPlayer(null);
         if (mediaController != null) {
+            setVideoTrackDisabled(true);
             mediaController.release();
             mediaController = null;
         }
