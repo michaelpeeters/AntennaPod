@@ -236,7 +236,12 @@ public class ChapterUtils {
             return new CountingInputStream(new BufferedInputStream(new FileInputStream(source)));
         } else if (playable.getStreamUrl().startsWith(ContentResolver.SCHEME_CONTENT)) {
             Uri uri = Uri.parse(playable.getStreamUrl());
-            return new CountingInputStream(new BufferedInputStream(context.getContentResolver().openInputStream(uri)));
+            try {
+                return new CountingInputStream(new BufferedInputStream(
+                        context.getContentResolver().openInputStream(uri)));
+            } catch (IllegalArgumentException e) {
+                throw new IOException(e);
+            }
         } else {
             Request request = new Request.Builder().url(playable.getStreamUrl()).build();
             Response response = AntennapodHttpClient.getHttpClient().newCall(request).execute();
