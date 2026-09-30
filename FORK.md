@@ -117,6 +117,23 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   anti-kill investigation below. Matches upstream issue #8666; not yet proposed upstream (see
   Questions for review). Does not address anti-kill cause 2 (foreground-service status
   genuinely dropping on pause) — still open.
+- **Only decode video while the video player is visible** (from `fix-audio-only-video-decoding`,
+  based on `upstream/develop` so it can go upstream unchanged; 2026-09-30): on-device
+  `dumpsys media.resource_manager` showed the hardware H.264 decoder (`c2.mtk.avc.decoder`)
+  running with battery accounting while a video episode played with the video player closed —
+  "Switch to audio only" just `finish()`es `Media3VideoPlayerActivity`, and playback started
+  from the list/notification/headphones never opens it at all. Fix: `Media3PlaybackService`
+  starts with `TRACK_TYPE_VIDEO` disabled, and `Media3VideoPlayerActivity` enables it in
+  `onStart` and disables it again in `onStop` (same `MediaController.setTrackSelectionParameters`
+  pattern upstream's `PlaybackControlsDialog` uses for audio tracks). Verified on-device: the
+  video decoder is created/released as the player is shown/left, the audio decoder instance
+  stays the same throughout (no audio interruption). Not proposed upstream yet.
+- **Chapter loading crash on deleted local-folder files** (from
+  `fix-chapters-missing-local-file`, based on `upstream/develop`; 2026-09-30): the SAF document
+  provider throws `IllegalArgumentException` (not `FileNotFoundException`) when a local-folder
+  episode's file was deleted, and `ChapterUtils.openStream()` didn't catch it — crashed the app
+  twice on-device (2026-09-18, 2026-09-28). Now wrapped as `IOException`, which the callers
+  already handle. Not proposed upstream yet.
 - **Defer hourly feed refresh when battery is low** (fork-only): skips the periodic
   auto-refresh `WorkManager` job while the device reports low battery, motivated by the battery
   usage investigation below (possibly related to upstream issue #8185).
