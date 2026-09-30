@@ -314,6 +314,8 @@ already running, and when there is nothing to resume it no-ops instead of lettin
 the service and crash on the missing foreground transition (#8766). Part of the
 "headphone play does nothing" symptom may have been that crash rather than an OS kill — re-test
 the real-world symptom on-device with this build before doing any code work on cause 2.
+**Retested 2026-09-30 on `fork-79`:** headphone play after a long pause works. Cause 2 is
+parked — no code change planned unless the symptom comes back.
 
 Needs upstream-compatibility judgment
 before implementing — this touches core service lifecycle behavior shared with stock
@@ -435,7 +437,9 @@ Item 2 remains an investigation-only write-up, same as the anti-kill section abo
   wake) are unconfirmed as a full fix, and the deeper code-level gap (cause 2: foreground-service
   status genuinely dropping on pause) still needs upstream-compatibility judgment before any
   code change. Deliberately holding off proposing anything upstream until there's more
-  confidence/runtime behind it.
+  confidence/runtime behind it. Update 2026-09-30: with upstream #8816 plus the manual
+  Doze/Smart Use exclusions, headphone play after a long pause works on-device (`fork-79`), so
+  there is likely nothing left to propose for #8666 from this fork.
 - **DB+preferences export**: landed on `mine` (cherry-picked from the `db-preferences-export`
   topic branch, now verified — build and tests green). The `SynchronizationCredentials`
   question above covers this feature's only open credential question (resolved: no). Current
