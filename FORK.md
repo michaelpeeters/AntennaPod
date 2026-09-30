@@ -293,8 +293,8 @@ entry), resets only on uninstall or package-name change (e.g. debug vs. release 
 This only addresses cause 1; cause 2 (foreground-service status genuinely dropping on pause)
 is a separate, code-level gap. Note Android already has a built-in wake-without-foreground
 hook for this: `MediaSession` registers a `PendingIntent` targeting a manifest-declared
-`<receiver>` (AntennaPod has both `androidx.media3.session.MediaButtonReceiver` and the
-legacy `de.danoeh.antennapod.playback.service.MediaButtonReceiver` in
+`<receiver>` (AntennaPod has both `de.danoeh.antennapod.playback.service.Media3MediaButtonReceiver`
+and the legacy `de.danoeh.antennapod.playback.service.MediaButtonReceiver` in
 `playback/service/src/main/AndroidManifest.xml`) with the platform's `MediaSessionManager`;
 the OS can cold-start the app via that receiver on a media-button/BT AVRCP press without any
 live foreground process, the same way a `BOOT_COMPLETED` receiver works. The likely remaining
@@ -305,7 +305,17 @@ kill. Worth confirming with a real kill (now that both the Doze and Smart Use ex
 set) before deciding whether cause 2 needs any code change at all — candidates if it does:
 requesting the battery-optimization exemption from within the app (with user consent), a
 bounded foreground grace period after pause, or guarding the `release()` call in `onDestroy()`
-so a kill doesn't tear down the receiver registration. Needs upstream-compatibility judgment
+so a kill doesn't tear down the receiver registration.
+
+**Upstream update (2026-09-30):** upstream `47245f740` ("Write our own media button receiver
+(#8816)", pulled in by the rebase) replaced media3's `MediaButtonReceiver` with a custom
+`Media3MediaButtonReceiver`. It forwards key events directly to the service when playback is
+already running, and when there is nothing to resume it no-ops instead of letting media3 start
+the service and crash on the missing foreground transition (#8766). Part of the
+"headphone play does nothing" symptom may have been that crash rather than an OS kill — re-test
+the real-world symptom on-device with this build before doing any code work on cause 2.
+
+Needs upstream-compatibility judgment
 before implementing — this touches core service lifecycle behavior shared with stock
 AntennaPod, not a fork-only corner.
 
