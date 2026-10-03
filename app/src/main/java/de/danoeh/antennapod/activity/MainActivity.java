@@ -4,9 +4,14 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -55,6 +60,7 @@ import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.playback.cast.CastEnabledActivity;
 import de.danoeh.antennapod.playback.service.Media3PlaybackService;
 import de.danoeh.antennapod.playback.service.PlaybackController;
+import de.danoeh.antennapod.playback.service.PlaybackService;
 import de.danoeh.antennapod.storage.databasemaintenanceservice.DatabaseMaintenanceWorker;
 import de.danoeh.antennapod.storage.importexport.AutomaticDatabaseExportWorker;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
@@ -122,6 +128,8 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     private int lastTheme = 0;
     private Insets systemBarInsets = Insets.NONE;
     private ListenableFuture<MediaController> mediaControllerFuture;
+    private AudioTrack claimTrack;
+    private boolean needsMediaButtonClaim = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -610,6 +618,55 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         getOnBackPressedDispatcher().addCallback(this, bottomSheetBackPressedCallback);
         mediaControllerFuture = new MediaController.Builder(this,
                 new SessionToken(this, new ComponentName(this, Media3PlaybackService.class))).buildAsync();
+        needsMediaButtonClaim = true;
+        mediaButtonClaimHandler.post(mediaButtonClaimCheck);
+    }
+
+    private final Handler mediaButtonClaimHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mediaButtonClaimCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (PlaybackService.isRunning) {
+                needsMediaButtonClaim = false;
+            } else if (((AudioManager) getSystemService(AUDIO_SERVICE)).isMusicActive()) {
+                if (claimTrack == null) {
+                    needsMediaButtonClaim = true;
+                }
+            } else if (needsMediaButtonClaim && claimMediaButtons()) {
+                needsMediaButtonClaim = false;
+            }
+            mediaButtonClaimHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private boolean claimMediaButtons() {
+        if (mediaControllerFuture == null || !mediaControllerFuture.isDone() || mediaControllerFuture.isCancelled()
+                || claimTrack != null) {
+            return false;
+        }
+        Log.d(TAG, "Claiming media buttons");
+        int sizeBytes = 8000 / 20 * 2;
+        AudioTrack track = new AudioTrack.Builder()
+                .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build())
+                .setAudioFormat(new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(8000)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build())
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .setBufferSizeInBytes(sizeBytes)
+                .build();
+        track.write(new byte[sizeBytes], 0, sizeBytes);
+        track.play();
+        claimTrack = track;
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            track.release();
+            claimTrack = null;
+        }, 100);
+        return true;
     }
 
     @Override
@@ -638,6 +695,8 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         super.onStop();
         EventBus.getDefault().unregister(this);
         MediaController.releaseFuture(mediaControllerFuture);
+        mediaControllerFuture = null;
+        mediaButtonClaimHandler.removeCallbacks(mediaButtonClaimCheck);
     }
 
     @Override
