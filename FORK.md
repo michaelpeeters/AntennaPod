@@ -181,6 +181,11 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   - A 500 ms silent clip made AVRCP report "playing", so the headset's single button sent
     PAUSE instead of PLAY. That's why the clip is now 50 ms.
   - A press within ~3 s of pausing another app can still go to that app.
+  - AntennaPod's own audio output stays active ~1 s after it pauses. The check first mistook
+    that for another app and claimed again, so AVRCP briefly reported "playing" and the next
+    headset press arrived as PAUSE (seen in the full-screen player, 2026-10-03). Fixed by
+    ignoring active audio until the output has gone quiet once after AntennaPod's own playback
+    or claim.
 
   Verified on-device with `cmd media_session dispatch play-pause` and the real headset after
   playing in Brave: one press resumes the last episode at its saved position.
