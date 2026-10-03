@@ -1,8 +1,11 @@
 package de.danoeh.antennapod.playback.service.internal;
 
 import android.content.Context;
+import android.content.Intent;
+import android.view.KeyEvent;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.Player;
 import androidx.media3.session.MediaSession;
 import de.danoeh.antennapod.model.feed.Feed;
 import de.danoeh.antennapod.model.feed.FeedItem;
@@ -14,6 +17,7 @@ import de.danoeh.antennapod.storage.database.FeedDatabaseWriter;
 import de.danoeh.antennapod.storage.database.PodDBAdapter;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
+import de.danoeh.antennapod.ui.appstartintent.MediaButtonStarter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,7 +30,12 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
 public class MediaLibrarySessionCallbackTest {
@@ -102,6 +111,42 @@ public class MediaLibrarySessionCallbackTest {
                 Collections.singletonList(searchItem), C.INDEX_UNSET, C.TIME_UNSET).get(5, TimeUnit.SECONDS);
         assertEquals(1, result.mediaItems.size());
         assertEquals(String.valueOf(mediaId), result.mediaItems.get(0).mediaId);
+    }
+
+    @Test
+    public void pauseKeyWhilePausedPlays() {
+        Player player = mock(Player.class);
+        when(session.getPlayer()).thenReturn(player);
+        when(player.getPlayWhenReady()).thenReturn(false);
+        assertTrue(callback.onMediaButtonEvent(session, controllerInfo, pauseKeyIntent(false)));
+        verify(player).play();
+    }
+
+    @Test
+    public void pauseKeyWhilePlayingIsLeftToMedia3() {
+        Player player = mock(Player.class);
+        when(session.getPlayer()).thenReturn(player);
+        when(player.getPlayWhenReady()).thenReturn(true);
+        assertFalse(callback.onMediaButtonEvent(session, controllerInfo, pauseKeyIntent(false)));
+        verify(player, never()).play();
+    }
+
+    @Test
+    public void pauseKeyFromWidgetWhilePausedDoesNotPlay() {
+        Player player = mock(Player.class);
+        when(session.getPlayer()).thenReturn(player);
+        when(player.getPlayWhenReady()).thenReturn(false);
+        assertFalse(callback.onMediaButtonEvent(session, controllerInfo, pauseKeyIntent(true)));
+        verify(player, never()).play();
+    }
+
+    private static Intent pauseKeyIntent(boolean fromWidget) {
+        Intent intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        intent.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE));
+        if (fromWidget) {
+            intent.putExtra(MediaButtonStarter.EXTRA_MEDIA_BUTTON_SOURCE, MediaButtonStarter.MEDIA_BUTTON_SOURCE_WIDGET);
+        }
+        return intent;
     }
 
     private FeedMedia seedEpisode() {
