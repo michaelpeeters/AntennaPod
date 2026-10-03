@@ -9,6 +9,7 @@ import android.webkit.URLUtil;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.core.content.ContextCompat;
 import androidx.core.util.Pair;
 import androidx.media3.common.C;
 import androidx.media3.common.DeviceInfo;
@@ -80,6 +81,7 @@ import org.greenrobot.eventbus.ThreadMode;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class Media3PlaybackService extends MediaLibraryService {
@@ -153,6 +155,10 @@ public class Media3PlaybackService extends MediaLibraryService {
 
             @Override
             public void play() {
+                if (getCurrentMediaItem() == null) {
+                    resumeLastPlayed();
+                    return;
+                }
                 if (handleStreamingConfirmation()) {
                     return;
                 } else if (shouldBlockForStreamingConfirmation()) {
@@ -296,6 +302,24 @@ public class Media3PlaybackService extends MediaLibraryService {
      * the service gets destroyed again and releases the session, which stops casting again.
      * This method manually starts the service, to be used when connected to chromecast.
      */
+    @UnstableApi
+    private void resumeLastPlayed() {
+        ListenableFuture<MediaSession.MediaItemsWithStartPosition> future =
+                sessionCallback.playbackResumption(false);
+        future.addListener(() -> {
+            try {
+                MediaSession.MediaItemsWithStartPosition items = future.get();
+                if (!items.mediaItems.isEmpty() && player.getCurrentMediaItem() == null) {
+                    player.setMediaItems(items.mediaItems, items.startIndex, items.startPositionMs);
+                    player.prepare();
+                    player.play();
+                }
+            } catch (ExecutionException | InterruptedException e) {
+                Log.e(TAG, "Unable to resume playback", e);
+            }
+        }, ContextCompat.getMainExecutor(this));
+    }
+
     private void keepServiceRunningWhileCasting() {
         try {
             startService(new Intent(this, Media3PlaybackService.class));
