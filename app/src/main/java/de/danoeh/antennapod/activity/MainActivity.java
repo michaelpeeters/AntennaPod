@@ -130,6 +130,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     private ListenableFuture<MediaController> mediaControllerFuture;
     private AudioTrack claimTrack;
     private boolean needsMediaButtonClaim = false;
+    private boolean ownAudioActive = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -626,14 +627,19 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     private final Runnable mediaButtonClaimCheck = new Runnable() {
         @Override
         public void run() {
-            if (PlaybackService.isRunning) {
+            if (PlaybackService.isRunning || claimTrack != null) {
                 needsMediaButtonClaim = false;
+                ownAudioActive = true;
             } else if (((AudioManager) getSystemService(AUDIO_SERVICE)).isMusicActive()) {
-                if (claimTrack == null) {
+                if (!ownAudioActive) {
                     needsMediaButtonClaim = true;
                 }
-            } else if (needsMediaButtonClaim && claimMediaButtons()) {
-                needsMediaButtonClaim = false;
+            } else {
+                ownAudioActive = false;
+                if (needsMediaButtonClaim && claimMediaButtons()) {
+                    needsMediaButtonClaim = false;
+                    ownAudioActive = true;
+                }
             }
             mediaButtonClaimHandler.postDelayed(this, 1000);
         }
