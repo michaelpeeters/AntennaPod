@@ -340,7 +340,7 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
     }
 
     @UnstableApi
-    private ListenableFuture<MediaSession.MediaItemsWithStartPosition> playbackResumption(
+    public ListenableFuture<MediaSession.MediaItemsWithStartPosition> playbackResumption(
             boolean fallbackToRecentEpisode) {
         SettableFuture<MediaSession.MediaItemsWithStartPosition> future = SettableFuture.create();
         Maybe.fromCallable(() -> {
