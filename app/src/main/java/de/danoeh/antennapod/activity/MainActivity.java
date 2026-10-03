@@ -668,7 +668,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         track.write(new byte[sizeBytes], 0, sizeBytes);
         track.play();
         claimTrack = track;
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+        mediaButtonClaimHandler.postDelayed(() -> {
             track.release();
             claimTrack = null;
         }, 100);
