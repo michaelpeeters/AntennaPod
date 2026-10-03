@@ -1,5 +1,6 @@
 package de.danoeh.antennapod.activity;
 
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -34,6 +35,8 @@ import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
 import com.bumptech.glide.Glide;
 import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -50,6 +53,7 @@ import de.danoeh.antennapod.net.download.serviceinterface.FeedUpdateManager;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 import de.danoeh.antennapod.net.sync.serviceinterface.SynchronizationQueue;
 import de.danoeh.antennapod.playback.cast.CastEnabledActivity;
+import de.danoeh.antennapod.playback.service.Media3PlaybackService;
 import de.danoeh.antennapod.playback.service.PlaybackController;
 import de.danoeh.antennapod.storage.databasemaintenanceservice.DatabaseMaintenanceWorker;
 import de.danoeh.antennapod.storage.importexport.AutomaticDatabaseExportWorker;
@@ -117,6 +121,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     private final RecyclerView.RecycledViewPool recycledViewPool = new RecyclerView.RecycledViewPool();
     private int lastTheme = 0;
     private Insets systemBarInsets = Insets.NONE;
+    private ListenableFuture<MediaController> mediaControllerFuture;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -603,6 +608,8 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
         new RatingDialogManager(this).showIfNeeded();
         getOnBackPressedDispatcher().addCallback(this, openDefaultPageBackPressedCallback);
         getOnBackPressedDispatcher().addCallback(this, bottomSheetBackPressedCallback);
+        mediaControllerFuture = new MediaController.Builder(this,
+                new SessionToken(this, new ComponentName(this, Media3PlaybackService.class))).buildAsync();
     }
 
     @Override
@@ -630,6 +637,7 @@ public class MainActivity extends CastEnabledActivity implements NavigationToolb
     protected void onStop() {
         super.onStop();
         EventBus.getDefault().unregister(this);
+        MediaController.releaseFuture(mediaControllerFuture);
     }
 
     @Override
