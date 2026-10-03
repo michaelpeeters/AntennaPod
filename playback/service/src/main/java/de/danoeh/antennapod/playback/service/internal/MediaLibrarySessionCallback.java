@@ -218,6 +218,10 @@ public class MediaLibrarySessionCallback implements MediaLibraryService.MediaLib
             } else if (fromWidget && keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
                 session.getPlayer().seekToNextMediaItem();
                 return true;
+            } else if (!fromWidget && keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE
+                    && !session.getPlayer().getPlayWhenReady()) {
+                session.getPlayer().play();
+                return true;
             }
         }
         return false;
