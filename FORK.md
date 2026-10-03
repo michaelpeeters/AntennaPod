@@ -147,6 +147,49 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   Fix here just keeps `butPlay` visible for video too. Not upstream-specific in any way — a
   good candidate for an upstream PR (see Questions for review); kept on `mine` in the meantime
   since it's a plain regression fix with no fork-specific reasoning behind it.
+- **Headset play works as soon as the app is opened** (fork-only, from
+  `media-session-on-app-open`, 2026-10-03). Symptom: after a SleepMode kill, then another app
+  (Brave) playing audio, Bluetooth play did nothing even with AntennaPod in the foreground.
+  `dumpsys media_session` showed 0 sessions, `Media button session is null` and
+  `Last MediaButtonReceiver: null`. Since Android 8, media keys go only to the session of the
+  app that most recently played audio, or to that app's saved receiver, never to the visible
+  app. Brave's session has no receiver, so playing in Brave cleared the saved one.
+  Three parts:
+  - `MainActivity` keeps a `MediaController` connected while started, so the service and
+    session exist.
+  - The "hack": while started, a check runs once per second. If another app's audio was
+    active (`AudioManager.isMusicActive()` while AntennaPod isn't playing) and now nothing is
+    playing, it plays 50 ms of silence through an `AudioTrack` (no audio focus, released after
+    100 ms). That makes AntennaPod the last audio app, so it becomes the media button session
+    and its `Media3MediaButtonReceiver` is saved. The first claim happens on start.
+    Downsides: it briefly wakes the BT audio link, and while AntennaPod is on screen a press
+    resumes AntennaPod rather than a paused Brave.
+  - `Media3PlaybackService`'s `play()` on an empty player now loads the last episode via
+    `MediaLibrarySessionCallback.playbackResumption()`, which was made public for this. In
+    Media3 1.11.0, a single play/pause press from the platform session goes through
+    `MediaSessionLegacyStub.handleMediaPlayPauseOnHandler` (a plain play), not the resumption
+    path. So with nothing loaded, the press did nothing.
+
+  The three parts only make sense together. Without the claim, the session is never chosen as
+  the headset target. Without the empty-player resume, a press reaching the session does nothing.
+
+  Things learned on the way (all on-device, Moto G73):
+  - A plain idle session is not enough: `dispatch play-pause` still went nowhere.
+  - Claiming once on start isn't reliable either. When coming back from Brave,
+    `isMusicActive()` stays true for ~3–4 s after Brave pauses, so a one-shot check or an
+    `AudioPlaybackCallback` missed it. Hence the polling.
+  - A 500 ms silent clip made AVRCP report "playing", so the headset's single button sent
+    PAUSE instead of PLAY. That's why the clip is now 50 ms.
+  - A press within ~3 s of pausing another app can still go to that app.
+
+  Verified on-device with `cmd media_session dispatch play-pause` and the real headset after
+  playing in Brave: one press resumes the last episode at its saved position.
+
+  Related upstream items, for a possible revisit: issue #8666 ("Earbud button playback
+  resumption does not work after 1 minute") and open PR #8697 ("Fix media resumption and
+  service lifecycle in Media3", touches `MediaLibrarySessionCallback.playbackResumption`, so
+  expect a conflict if it merges). Neither covers the "another app played last" case. Not
+  proposed upstream; the silent claim would not be accepted there.
 
 ## Investigation notes: the buffer freeze fix
 
