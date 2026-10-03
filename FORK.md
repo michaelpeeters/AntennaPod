@@ -186,6 +186,11 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
     headset press arrived as PAUSE (seen in the full-screen player, 2026-10-03). Fixed by
     ignoring active audio until the output has gone quiet once after AntennaPod's own playback
     or claim.
+  - Unavoidable claims (every `MainActivity` start, e.g. after a lock/unlock) still make the
+    next press arrive as PAUSE. So `MediaLibrarySessionCallback.onMediaButtonEvent` now treats
+    a PAUSE key while already paused as play (not for widget presses). Covered by
+    `MediaLibrarySessionCallbackTest`. A device with a separate pause button would now start
+    playback if pause is pressed while already paused.
 
   Verified on-device with `cmd media_session dispatch play-pause` and the real headset after
   playing in Brave: one press resumes the last episode at its saved position.
