@@ -9,12 +9,14 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import de.danoeh.antennapod.model.feed.FeedItem;
 import de.danoeh.antennapod.model.feed.FeedItemFilter;
 import de.danoeh.antennapod.model.feed.FeedPreferences;
 import de.danoeh.antennapod.net.download.serviceinterface.DownloadServiceInterface;
 import de.danoeh.antennapod.storage.database.DBReader;
+import de.danoeh.antennapod.storage.database.DBWriter;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
 import de.danoeh.antennapod.net.common.NetworkUtils;
 
@@ -97,6 +99,19 @@ public class AutomaticDownloadAlgorithm {
                 if (!itemsToDownload.isEmpty()) {
                     Log.d(TAG, "Enqueueing " + itemsToDownload.size() + " items for download");
 
+                    if (UserPreferences.enqueueDownloadedEpisodes()) {
+                        List<FeedItem> itemsToEnqueue = new ArrayList<>();
+                        for (FeedItem episode : itemsToDownload) {
+                            if (!episode.isTagged(FeedItem.TAG_QUEUE)) {
+                                itemsToEnqueue.add(0, episode);
+                            }
+                        }
+                        try {
+                            DBWriter.addQueueItem(context, itemsToEnqueue.toArray(new FeedItem[0])).get();
+                        } catch (InterruptedException | ExecutionException e) {
+                            Log.e(TAG, Log.getStackTraceString(e));
+                        }
+                    }
                     for (FeedItem episode : itemsToDownload) {
                         DownloadServiceInterface.get().download(context, episode);
                     }
