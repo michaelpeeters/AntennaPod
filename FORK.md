@@ -200,6 +200,28 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   service lifecycle in Media3", touches `MediaLibrarySessionCallback.playbackResumption`, so
   expect a conflict if it merges). Neither covers the "another app played last" case. Not
   proposed upstream; the silent claim would not be accepted there.
+- **Auto-downloaded episodes queued in a fixed, oldest-first order** (from
+  `fix-autodownload-queue-order`): Bible-reading chapters of the jw-epub-rss feeds (one episode
+  per chapter, 1 minute apart) landed in the queue in a different order every week. Root cause:
+  `AutomaticDownloadAlgorithm` requests downloads newest first, and each download request
+  enqueued its own episode. With enqueue location "front", an episode goes in front of the
+  first queue item that is *not* downloading yet, and "downloading" is updated asynchronously.
+  So the order depended on timing: downloads waiting for wifi/charging gave oldest first, the
+  app open on wifi gave newest first or mixed (seen: Jeremia 43, 44, 42). Fix: enqueue the
+  whole batch oldest first in one `DBWriter.addQueueItem` call before requesting the
+  downloads. Covered by `AutomaticDownloadAlgorithmTest`, which fails without the fix with
+  `[chapter 3, chapter 2, chapter 1]`. Trade-off: cancelling an auto-download no longer removes
+  the episode from the queue (the download request did not enqueue it, so it lacks the
+  `WORK_DATA_WAS_QUEUED` tag).
+
+  Verified on-device 2026-10-12: this week's 9 chapters (en/fr/nl) deleted from the DB and
+  re-fetched with the app open on wifi gave Jeremiah 42-43-44, Jérémie 42-43-44,
+  Jeremia 42-43-44. The language grouping comes from jw-epub-rss (each language its own
+  pubDate hour); the fix keeps the order within and between them.
+
+  Gotcha when repeating that test: AntennaPod skips a feed whose `Last-Modified` is unchanged,
+  so `touch` the feed files on the server before refreshing. Not proposed upstream yet; a
+  reasonable candidate (it also changes behaviour for "back" and "after current").
 
 ## Investigation notes: the buffer freeze fix
 
