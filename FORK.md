@@ -56,11 +56,14 @@ whichever `fork-*` release is newest automatically; no specific tag needs to be 
 
 Two different kinds of change live here, and they're tracked differently:
 
-- **Candidate for an upstream PR**: gets its own topic branch off the appropriate upstream
-  base (e.g. `fix-video-freeze-buffer-control`), opened as a normal AntennaPod PR following
-  upstream's contribution conventions. That branch/PR stays open (or stays available even if
-  closed) independent of whatever ends up on `mine`, so a maintainer can still review or
-  revisit it later.
+**Rule: never open a PR (or issue/comment) on upstream AntennaPod unless Michaël explicitly
+allows that specific one.** The maintainers don't welcome AI-made PRs. Preparing a topic branch
+on this fork is fine; don't file `[claude-question]` issues asking to propose things upstream.
+
+- **Candidate for an upstream PR**: gets its own topic branch off `upstream/develop` on this
+  fork (e.g. `fix-video-miniplayer-play-button`, `fix-chapters-missing-local-file`), ready in
+  case Michaël decides to open it himself or explicitly asks for it. That branch stays
+  available independent of whatever ends up on `mine`.
 - **Fork-only** (rejected upstream, or judged not worth proposing — e.g. because it diverges
   too far from upstream's own direction for the payoff): cherry-picked directly onto `mine`
   from its topic branch, permanently, regardless of the upstream PR's fate.
