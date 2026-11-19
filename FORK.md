@@ -225,6 +225,16 @@ A change can be both at once: proposed upstream on its own branch/PR *and* cherr
   Gotcha when repeating that test: AntennaPod skips a feed whose `Last-Modified` is unchanged,
   so `touch` the feed files on the server before refreshing. Not proposed upstream yet; a
   reasonable candidate (it also changes behaviour for "back" and "after current").
+- **Next episode no longer pauses right after auto-advance** (upstream issue #8880, committed
+  directly on `mine`): when the queue advanced, the next episode sometimes started and stopped
+  within about 0.1 s (seen 2026-11-03 and 2026-11-07). Root cause: `startNextInQueue` runs
+  `updateDatabaseAfterPlayback`, whose auto-delete calls `DBWriter.deleteFeedMediaSynchronous`
+  while `PlaybackPreferences` still names the finished episode as playing. That sends a
+  `KEYCODE_MEDIA_STOP` broadcast, and if it arrives after the next episode set
+  `playWhenReady`, the service pauses. It's a timing race, not the headset. Fix: write the next
+  episode to `PlaybackPreferences` before the database update, so the delete no longer matches
+  the currently playing episode. Verified on the phone 2026-11-19 (several short auto-delete
+  episodes in a row kept playing). Not proposed upstream.
 
 ## Investigation notes: the buffer freeze fix
 
